@@ -5,19 +5,23 @@ const fsp = require('fs/promises');
 const path = require('path');
 const http = require('http');
 const https = require('https');
+const { HttpProxyAgent } = require('http-proxy-agent');
+const { HttpsProxyAgent } = require('https-proxy-agent');
 
 function printUsageAndExit() {
 	console.log(
 		'用法:\n' +
-		'  node markdown图片下载替换.js --md <markdown路径> --out <静态资源目录> [--publicPath <Markdown替换前缀>] [--startIndex <起始序号>]\n' +
+		'  node markdown图片下载替换.js --md <markdown路径> --out <静态资源目录> [--publicPath <Markdown替换前缀>] [--startIndex <起始序号>] [--proxy <http(s)://HOST:PORT>]\n' +
 		'说明:\n' +
 		'  --md         必填, 要处理的 Markdown 文件路径\n' +
 		'  --out        必填, 下载图片保存到的目录(若不存在会创建)\n' +
 		'  --publicPath 选填, Markdown 中替换后的前缀(如 /static/img/).\n' +
 		'               若不提供, 将自动计算相对路径(从 Markdown 所在目录到静态目录).\n' +
 		'  --startIndex 选填, 序号起始值, 默认 1\n' +
+		'  --proxy      选填, 通过代理下载, 例如 http://127.0.0.1:8443\n' +
+		'               也可用环境变量 HTTPS_PROXY/HTTP_PROXY 指定\n' +
 		'示例:\n' +
-		'  node markdown图片下载替换.js --md "AI项目开发教程/01-开发工具安装/03.开发工具-navicat安装.md" --out "AI项目开发教程/01-开发工具安装/03assets"\n' +
+		'  node markdown图片下载替换.js --md "AI项目开发教程/01-开发工具安装/03.开发工具-navicat安装.md" --out "AI项目开发教程/01-开发工具安装/03assets" --proxy http://127.0.0.1:8443\n' +
 		'  node markdown图片下载替换.js --md "./doc.md" --out "./public/img" --publicPath "/img/" --startIndex 1' 
 	);
 	process.exit(1);
@@ -81,13 +85,27 @@ function getHttpModule(urlStr) {
 	return urlStr.startsWith('https') ? https : http;
 }
 
-function downloadWithRedirects(urlStr, destPath, maxRedirects = 5, timeoutMs = 20000) {
+function createAgents(proxyUrl) {
+	if (!proxyUrl) return { httpAgent: undefined, httpsAgent: undefined };
+	try {
+		return {
+			httpAgent: new HttpProxyAgent(proxyUrl),
+			httpsAgent: new HttpsProxyAgent(proxyUrl),
+		};
+	} catch {
+		return { httpAgent: undefined, httpsAgent: undefined };
+	}
+}
+
+function downloadWithRedirects(urlStr, destPath, maxRedirects = 5, timeoutMs = 20000, agents = {}) {
 	return new Promise((resolve, reject) => {
 		let redirects = 0;
 
 		function doRequest(currentUrl) {
 			const lib = getHttpModule(currentUrl);
-			const req = lib.get(currentUrl, { headers: { 'User-Agent': 'Mozilla/5.0' } }, (res) => {
+			const isHttps = currentUrl.startsWith('https');
+			const agent = isHttps ? agents.httpsAgent : agents.httpAgent;
+			const req = lib.get(currentUrl, { headers: { 'User-Agent': 'Mozilla/5.0' }, agent }, (res) => {
 				if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
 					if (redirects >= maxRedirects) {
 						res.resume();
@@ -165,6 +183,11 @@ async function main() {
 	const outDir = args.out;
 	const publicPath = args.publicPath; // 如果提供, 直接使用
 	const startIndex = Number(args.startIndex || 1);
+	const proxyUrl = args.proxy || process.env.HTTPS_PROXY || process.env.HTTP_PROXY || process.env.https_proxy || process.env.http_proxy;
+	const agents = createAgents(proxyUrl);
+	if (proxyUrl) {
+		console.log('使用代理:', proxyUrl);
+	}
 
 	if (!mdPath || !outDir) {
 		printUsageAndExit();
@@ -209,11 +232,10 @@ async function main() {
 		currentIndex = idx + 1;
 		console.log(`下载: ${urlStr} -> ${ensureForwardSlashes(path.relative(process.cwd(), full))}`);
 		try {
-			await downloadWithRedirects(urlStr, full);
+			await downloadWithRedirects(urlStr, full, 5, 20000, agents);
 			urlToLocalName.set(urlStr, name);
 		} catch (e) {
-			console.error('下载失败, 将跳过此图片:', urlStr, '\
-原因:', e.message);
+			console.error('下载失败, 将跳过此图片:', urlStr, '\n原因:', e.message);
 		}
 	}
 
