@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.kpi.mapper.KpiCycleWeightMapper">
+
+    <resultMap type="com.ruoyi.kpi.domain.KpiCycleWeight" id="KpiCycleWeightResult">
+        <id     property="id"        column="id" />
+        <result property="cycleId"   column="cycle_id" />
+        <result property="subjectType" column="subject_type" />
+        <result property="raterPostId" column="rater_post_id" />
+        <result property="weight"    column="weight" />
+        <result property="createBy"  column="create_by" />
+        <result property="createTime" column="create_time" />
+        <result property="updateBy"  column="update_by" />
+        <result property="updateTime" column="update_time" />
+    </resultMap>
+
+    <sql id="selectColumns">
+        id, cycle_id, subject_type, rater_post_id, weight, create_by, create_time, update_by, update_time
+    </sql>
+
+    <select id="selectKpiCycleWeightById" parameterType="long" resultMap="KpiCycleWeightResult">
+        select <include refid="selectColumns"/> from kpi_cycle_weight where id = #{id}
+    </select>
+
+    <select id="selectKpiCycleWeightList" parameterType="com.ruoyi.kpi.domain.KpiCycleWeight" resultMap="KpiCycleWeightResult">
+        select <include refid="selectColumns"/> from kpi_cycle_weight
+        <where>
+            <if test="cycleId != null"> and cycle_id = #{cycleId}</if>
+            <if test="subjectType != null and subjectType != ''"> and subject_type = #{subjectType}</if>
+            <if test="raterPostId != null"> and rater_post_id = #{raterPostId}</if>
+        </where>
+        order by id desc
+    </select>
+
+    <insert id="insertKpiCycleWeight" parameterType="com.ruoyi.kpi.domain.KpiCycleWeight" useGeneratedKeys="true" keyProperty="id">
+        insert into kpi_cycle_weight(cycle_id, subject_type, rater_post_id, weight, create_by, create_time)
+        values(#{cycleId}, #{subjectType}, #{raterPostId}, #{weight}, #{createBy}, now())
+    </insert>
+
+    <update id="updateKpiCycleWeight" parameterType="com.ruoyi.kpi.domain.KpiCycleWeight">
+        update kpi_cycle_weight
+        <set>
+            <if test="cycleId != null"> cycle_id = #{cycleId},</if>
+            <if test="subjectType != null and subjectType != ''"> subject_type = #{subjectType},</if>
+            <if test="raterPostId != null"> rater_post_id = #{raterPostId},</if>
+            <if test="weight != null"> weight = #{weight},</if>
+            update_by = #{updateBy},
+            update_time = now()
+        </set>
+        where id = #{id}
+    </update>
+
+    <delete id="deleteKpiCycleWeightById" parameterType="long">
+        delete from kpi_cycle_weight where id = #{id}
+    </delete>
+
+    <delete id="deleteKpiCycleWeightByIds" parameterType="long">
+        delete from kpi_cycle_weight where id in
+        <foreach item="id" collection="array" open="(" separator="," close=")">#{id}</foreach>
+    </delete>
+
+</mapper> 
