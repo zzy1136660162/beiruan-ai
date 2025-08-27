@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.kpi.mapper.KpiResultSignMapper">
+	<resultMap id="KpiResultSignResult" type="com.ruoyi.kpi.domain.KpiResultSign">
+		<id property="id" column="id"/>
+		<result property="resultId" column="result_id"/>
+		<result property="userId" column="user_id"/>
+		<result property="signStatus" column="sign_status"/>
+		<result property="signTime" column="sign_time"/>
+		<result property="createBy" column="create_by"/>
+		<result property="createTime" column="create_time"/>
+		<result property="updateBy" column="update_by"/>
+		<result property="updateTime" column="update_time"/>
+	</resultMap>
+	<sql id="columns">id, result_id, user_id, sign_status, sign_time, create_by, create_time, update_by, update_time</sql>
+	<select id="selectKpiResultSignById" parameterType="long" resultMap="KpiResultSignResult">select <include refid="columns"/> from kpi_result_sign where id=#{id}</select>
+	<select id="selectKpiResultSignList" parameterType="com.ruoyi.kpi.domain.KpiResultSign" resultMap="KpiResultSignResult">
+		select <include refid="columns"/> from kpi_result_sign
+		<where>
+			<if test="resultId!=null"> and result_id=#{resultId}</if>
+			<if test="userId!=null"> and user_id=#{userId}</if>
+			<if test="signStatus!=null and signStatus!=''"> and sign_status=#{signStatus}</if>
+		</where>
+		order by id desc
+	</select>
+	<insert id="insertKpiResultSign" parameterType="com.ruoyi.kpi.domain.KpiResultSign" useGeneratedKeys="true" keyProperty="id">
+		insert into kpi_result_sign(result_id, user_id, sign_status, sign_time, create_by, create_time)
+		values(#{resultId}, #{userId}, IFNULL(#{signStatus},'0'), #{signTime}, #{createBy}, now())
+	</insert>
+	<update id="updateKpiResultSign" parameterType="com.ruoyi.kpi.domain.KpiResultSign">
+		update kpi_result_sign
+		<set>
+			<if test="resultId!=null"> result_id=#{resultId},</if>
+			<if test="userId!=null"> user_id=#{userId},</if>
+			<if test="signStatus!=null and signStatus!=''"> sign_status=#{signStatus},</if>
+			<if test="signTime!=null"> sign_time=#{signTime},</if>
+			update_by=#{updateBy}, update_time=now()
+		</set>
+		where id=#{id}
+	</update>
+	<delete id="deleteKpiResultSignById" parameterType="long">delete from kpi_result_sign where id=#{id}</delete>
+	<delete id="deleteKpiResultSignByIds" parameterType="long">delete from kpi_result_sign where id in <foreach collection="array" item="id" open="(" separator="," close=")">#{id}</foreach></delete>
+</mapper> 
